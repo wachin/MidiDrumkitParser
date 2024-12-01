@@ -1,7 +1,7 @@
 # Variables
 PROJECT_NAME = MIDI_Drumkit_Parser
 
-# Comandos
+# Comandos principales
 all: build
 
 build:
@@ -15,4 +15,5 @@ clean:
 
 install:
 	./install.sh
+
 
