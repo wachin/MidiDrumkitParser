@@ -8,21 +8,20 @@ namespace MIDI_Drumkit_Parser
 {
     public static class HierarchicalRhythmInferrer
     {
-        /* This function strips down a rhythm into its smallest repeating unit as a power of two semiquavers. */
+        // Encuentra la unidad repetitiva más larga en una estructura rítmica
         public static RhythmStructure FindRepeatingUnit(RhythmStructure rhythm)
         {
-            int rhythmLength = rhythm.drums.Count;
-            int maxRepeatingUnitLength = 4 * (rhythmLength / 4);
+            int rhythmLength = rhythm.Drums.Count;
+            int maxRepeatingUnitLength = 4 * (rhythmLength / 4); // Máxima longitud en múltiplos de 4
             bool repeatingUnitFound = false;
             int unitLength = 4;
-            RhythmStructure rhythmUnit = new RhythmStructure(rhythm.beatInterval);
 
-            /* Basically, start with a unit of length one and check it against the rest of the rhythm,
-             * if it doesn't match keep doubling the length until it matches, or take the original rhythm. */
+            var rhythmUnit = new RhythmStructure(rhythm.BeatInterval);
+
             while (!repeatingUnitFound && unitLength <= maxRepeatingUnitLength)
             {
-                rhythmUnit = rhythm.CopySub(0, unitLength, rhythm.beatInterval);
-                int repetitions = (rhythmLength / unitLength) - 1;
+                rhythmUnit = rhythm.CopySub(0, unitLength, rhythm.BeatInterval);
+                int repetitions = rhythmLength / unitLength - 1;
                 repeatingUnitFound = true;
 
                 for (int i = 0; i < repetitions; i++)
@@ -30,6 +29,7 @@ namespace MIDI_Drumkit_Parser
                     if (!rhythm.CheckMatch(rhythmUnit, (i + 1) * unitLength))
                     {
                         repeatingUnitFound = false;
+                        break;
                     }
                 }
 
@@ -39,52 +39,39 @@ namespace MIDI_Drumkit_Parser
             return rhythmUnit;
         }
 
-        static List<Drum> drumList = new List<Drum> { Drum.Snare, Drum.TomHigh, Drum.TomMid, Drum.TomLow, 
-            Drum.HatOpen, Drum.HatClosed, Drum.HatClosing, Drum.CrashLeft, Drum.CrashRight, Drum.Kick };
-
+        // Crea una jerarquía rítmica a partir de una estructura rítmica plana
         public static HierarchicalRhythm CreateHierarchicalRhythm(RhythmStructure rhythm)
         {
-            RhythmStructure rhythmCopy = new RhythmStructure(rhythm);
-            int treeDepth = (int)Math.Log(rhythm.drums.Count, 2);
-            HierarchicalRhythm hRhythm = new HierarchicalRhythm(rhythm.beatInterval, treeDepth);
+            int treeDepth = (int)Math.Log2(rhythm.Drums.Count);
+            var hRhythm = new HierarchicalRhythm(rhythm.BeatInterval, treeDepth);
 
-            foreach (Drum drum in drumList)
+            foreach (Drum drum in Enum.GetValues(typeof(Drum)))
             {
-                /* Tree level 0 is the root, for drums that occur on every semiquaver of the rhythm,
-                 * and the bottom level is the notes that occur only once across the rhythm. */
                 for (int level = 0; level <= treeDepth; level++)
                 {
                     int intervalBetweenNotes = (int)Math.Pow(2, level);
 
-                    /* This index is the amount that the recurring note is "shifted" across the rhythm.
-                     * For example, if we're at minim level, then at i=3 we have notes occuring every minim,
-                     * starting on the semiquaver with index 3. */
                     for (int shift = 0; shift < intervalBetweenNotes; shift++)
                     {
-                        /* If the particular drum we're looking at is found in the rhythm,
-                         * at the location we're dealing with, start scanning along. */
-                        if (rhythmCopy.GetAtIndex(shift).Contains(drum))
+                        bool notesLineUp = true;
+
+                        for (int i = shift; i < rhythm.Drums.Count; i += intervalBetweenNotes)
                         {
-                            /* Finally, iterate across the entire rhythm according to the shift and interval. 
-                             * TODO: This isn't very efficient, would be better to stop immediately if there's a mismatch. */
-                            bool notesLineUp = true;
-
-                            for (int i = shift; i < rhythmCopy.drums.Count; i += intervalBetweenNotes)
+                            if (!rhythm.GetAtIndex(i).Contains(drum))
                             {
-                                if (!rhythmCopy.GetAtIndex(i).Contains(drum))
-                                {
-                                    notesLineUp = false;
-                                }
+                                notesLineUp = false;
+                                break;
                             }
+                        }
 
-                            if (notesLineUp)
+                        if (notesLineUp)
+                        {
+                            hRhythm.AddDrum(level, shift, drum);
+
+                            // Remueve los tambores que ya fueron alineados
+                            for (int i = shift; i < rhythm.Drums.Count; i += intervalBetweenNotes)
                             {
-                                hRhythm.AddDrum(level, shift, drum);
-
-                                for (int i = shift; i < rhythmCopy.drums.Count; i += intervalBetweenNotes)
-                                {
-                                    rhythmCopy.RemoveDrumAt(i, drum);
-                                }
+                                rhythm.GetAtIndex(i).Remove(drum);
                             }
                         }
                     }
@@ -92,6 +79,33 @@ namespace MIDI_Drumkit_Parser
             }
 
             return hRhythm;
+        }
+
+        // Compara dos jerarquías rítmicas para determinar si son equivalentes
+        public static bool CompareHierarchicalRhythms(HierarchicalRhythm rhythm1, HierarchicalRhythm rhythm2)
+        {
+            return rhythm1.IsEqual(rhythm2);
+        }
+
+        // Convierte una jerarquía rítmica en un formato plano (RhythmStructure)
+        public static RhythmStructure FlattenHierarchicalRhythm(HierarchicalRhythm hRhythm)
+        {
+            var rhythm = new RhythmStructure(hRhythm.Interval);
+
+            // Recorre todos los niveles de la jerarquía y combina los tambores
+            for (int i = 0; i < Math.Pow(2, hRhythm.GetLevel(0).Count); i++)
+            {
+                var combinedDrums = new HashSet<Drum>();
+
+                foreach (var node in hRhythm.GetLevel(0))
+                {
+                    combinedDrums.UnionWith(node.Drums);
+                }
+
+                rhythm.AddDrums(combinedDrums);
+            }
+
+            return rhythm;
         }
     }
 }

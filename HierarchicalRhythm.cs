@@ -8,108 +8,147 @@ namespace MIDI_Drumkit_Parser
 {
     public class HierarchicalRhythmNode
     {
-        public HierarchicalRhythmNode Left;
-        public HierarchicalRhythmNode Right;
-        public HashSet<Drum> drums;
+        public HierarchicalRhythmNode Left { get; set; }
+        public HierarchicalRhythmNode Right { get; set; }
+        public HashSet<Drum> Drums { get; private set; }
 
+        // Constructor para inicializar los tambores
         public HierarchicalRhythmNode()
         {
-            drums = new HashSet<Drum>();
+            Drums = new HashSet<Drum>();
         }
 
-        public void SetDrums(HashSet<Drum> _drums)
+        // Establece los tambores de este nodo
+        public void SetDrums(HashSet<Drum> drums)
         {
-            drums = _drums;
+            Drums = drums;
         }
 
+        // Crea una jerarquía profunda de nodos
         public void Deepen(int depth)
         {
-            if (depth == 0)
-            {
-                return;
-            }
-            else
-            {
-                Left = new HierarchicalRhythmNode();
-                Left.Deepen(depth - 1);
-                Right = new HierarchicalRhythmNode();
-                Right.Deepen(depth - 1);
-            }
+            if (depth == 0) return;
+
+            Left = new HierarchicalRhythmNode();
+            Right = new HierarchicalRhythmNode();
+
+            Left.Deepen(depth - 1);
+            Right.Deepen(depth - 1);
         }
 
+        // Imprime la estructura del nodo a un nivel específico
         public void Print(int level)
         {
             if (level == 0)
             {
                 Console.Write("{");
-                foreach(Drum drum in drums)
+                foreach (var drum in Drums)
                 {
-                    Console.Write(drum + " ");
+                    Console.Write($"{drum} ");
                 }
                 Console.Write("} ");
             }
             else
             {
-                Left.Print(level - 1);
-                Right.Print(level - 1);
+                Left?.Print(level - 1);
+                Right?.Print(level - 1);
             }
+        }
+
+        // Compara dos nodos para determinar si tienen los mismos tambores
+        public bool IsEqual(HierarchicalRhythmNode otherNode)
+        {
+            return Drums.SetEquals(otherNode.Drums);
         }
     }
 
     public class HierarchicalRhythm
     {
-        public HierarchicalRhythmNode Root;
-        public double interval;
-        private int depth;
+        public HierarchicalRhythmNode Root { get; private set; }
+        public double Interval { get; private set; }
+        private int Depth { get; set; }
 
-        // Here "depth" is the base 2 logarithm of the number of units in the rhythm.
-        public HierarchicalRhythm(double _interval, int _depth)
+        // Constructor para inicializar la jerarquía
+        public HierarchicalRhythm(double interval, int depth)
         {
-            interval = _interval;
+            Interval = interval;
             Root = new HierarchicalRhythmNode();
-            Root.Deepen(_depth);
-            depth = _depth;
+            Root.Deepen(depth);
+            Depth = depth;
         }
 
-        // Here "level" is the base 2 logarithm of the number of units on that level.
-        private void AddDrumAt(int level, int index, Drum drum, HierarchicalRhythmNode node)
-        {
-            if (level < 0)
-                throw new Exception("Attempted to add drum at level " + level);
-
-            // Top of tree, insert here
-            if (level == 0)
-            {
-                node.drums.Add(drum);
-            }
-            else
-            {
-                // Go down the left branch
-                if (index < Math.Pow(2, level))
-                {
-                    AddDrumAt(level - 1, index, drum, node.Left);
-                }
-                // Go down the right branch
-                else
-                {
-                    int newIndex = index - (int)Math.Pow(2, level - 1);
-                    AddDrumAt(level - 1, newIndex, drum, node.Right);
-                }
-            }
-        }
-
+        // Agrega un tambor en un nivel y posición específicos
         public void AddDrum(int level, int index, Drum drum)
         {
             AddDrumAt(level, index, drum, Root);
         }
 
+        private void AddDrumAt(int level, int index, Drum drum, HierarchicalRhythmNode node)
+        {
+            if (level == 0)
+            {
+                node.Drums.Add(drum);
+            }
+            else
+            {
+                int midPoint = (int)Math.Pow(2, level - 1);
+                if (index < midPoint)
+                {
+                    AddDrumAt(level - 1, index, drum, node.Left);
+                }
+                else
+                {
+                    AddDrumAt(level - 1, index - midPoint, drum, node.Right);
+                }
+            }
+        }
+
+        // Imprime la jerarquía completa
         public void Print()
         {
-            for (int i = 0; i <= depth; i++)
+            for (int i = 0; i <= Depth; i++)
             {
                 Root.Print(i);
                 Console.WriteLine();
             }
+        }
+
+        // Devuelve un nivel específico como una lista de nodos
+        public List<HierarchicalRhythmNode> GetLevel(int level)
+        {
+            var nodes = new List<HierarchicalRhythmNode>();
+            CollectLevelNodes(Root, level, nodes);
+            return nodes;
+        }
+
+        private void CollectLevelNodes(HierarchicalRhythmNode node, int level, List<HierarchicalRhythmNode> nodes)
+        {
+            if (level == 0)
+            {
+                nodes.Add(node);
+            }
+            else
+            {
+                node.Left?.CollectLevelNodes(node.Left, level - 1, nodes);
+                node.Right?.CollectLevelNodes(node.Right, level - 1, nodes);
+            }
+        }
+
+        // Compara esta jerarquía con otra
+        public bool IsEqual(HierarchicalRhythm otherRhythm)
+        {
+            return CompareNodes(Root, otherRhythm.Root);
+        }
+
+        private bool CompareNodes(HierarchicalRhythmNode thisNode, HierarchicalRhythmNode otherNode)
+        {
+            if (thisNode == null && otherNode == null) return true;
+            if (thisNode == null || otherNode == null) return false;
+
+            if (!thisNode.IsEqual(otherNode)) return false;
+
+            return CompareNodes(thisNode.Left, otherNode.Left) &&
+                   CompareNodes(thisNode.Right, otherNode.Right);
         }
     }
 }

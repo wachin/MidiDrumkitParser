@@ -30,52 +30,76 @@ using System.Threading.Tasks;
 
 namespace MIDI_Drumkit_Parser
 {
-    class Program
+    internal class Program
     {
-        static void Main(string[] args)
+        private static void Main(string[] args)
         {
-            bool edit_only = false;
-            bool find_hierarchy = true;
+            Console.WriteLine("Welcome to MIDI Drumkit Parser!");
+            Console.WriteLine("This program converts MIDI drum tracks into ASCII tablatures and Sonic Pi code.");
+            Console.WriteLine("Press any key to begin...");
+            Console.ReadKey();
 
-            if (!edit_only)
+            // Inicializa el lector MIDI
+            var reader = new MidiReader();
+
+            Console.WriteLine("Press any key to start recording MIDI input...");
+            Console.ReadKey();
+            reader.Start();
+
+            Console.WriteLine("Recording MIDI events. Press any key to stop.");
+            Console.ReadKey();
+            reader.Stop();
+
+            // Procesa los datos MIDI capturados
+            Console.WriteLine("Processing MIDI data...");
+            var noteEvents = reader.FetchEventList();
+
+            if (!noteEvents.Any())
             {
-                MidiReader reader = new MidiReader();
-                Console.WriteLine("Ready to record. Press any key to begin.");
-                Console.ReadKey();
-
-                reader.Start();
-                Console.WriteLine("Recording started. Press any key to stop the recording.");
-                Console.ReadKey();
-
-                reader.Stop();
-                Console.WriteLine("Recording finished. Processing...");
-                List<BeatEvent> beatEvents = TempoInferrer.NotesToEvents(reader.FetchEventList());
-                List<IntervalCluster> intervalClusters = TempoInferrer.EventsToClusters(beatEvents);
-                intervalClusters = TempoInferrer.RateClusters(intervalClusters);
-                BeatTracker finalBeat = BeatInferrer.FindBeat(intervalClusters, beatEvents);
-                RhythmStructure rhythm = RhythmCreator.CreateRhythm(finalBeat, beatEvents);
-
-                if (find_hierarchy)
-                {
-                    rhythm = HierarchicalRhythmInferrer.FindRepeatingUnit(rhythm);
-                }
-
-                AsciiTabRenderer.RenderAsciiTab(rhythm);
-
-                Console.WriteLine("ASCII Tab rendered to tab.txt.");
-
-                if (find_hierarchy)
-                {
-                    HierarchicalRhythm hRhythm = HierarchicalRhythmInferrer.CreateHierarchicalRhythm(rhythm);
-                    hRhythm.Print();
-                }
+                Console.WriteLine("No MIDI events were captured. Exiting...");
+                return;
             }
 
-            /* Read in (possibly edited) ASCII tab and convert to Sonic Pi */
+            // Convertir notas a eventos rítmicos
+            var beatEvents = TempoInferrer.NotesToEvents(noteEvents);
+
+            // Inferencia de tempo
+            var clusters = TempoInferrer.EventsToClusters(beatEvents);
+            var ratedClusters = TempoInferrer.RateClusters(clusters);
+
+            if (!ratedClusters.Any())
+            {
+                Console.WriteLine("No valid tempo clusters found. Exiting...");
+                return;
+            }
+
+            // Determina el tempo final
+            var finalBeat = BeatInferrer.FindBeat(ratedClusters, beatEvents);
+
+            // Genera la estructura rítmica
+            var rhythm = RhythmCreator.CreateRhythm(finalBeat, beatEvents);
+
+            Console.WriteLine("Generating ASCII tablature...");
+            AsciiTabRenderer.RenderAsciiTab(rhythm);
+
+            Console.WriteLine("Generating Sonic Pi code...");
             SonicPiEmitter.EmitSonicPi();
 
-            Console.WriteLine("Sonic Pi code emitted to sonicpi.txt");
+            Console.WriteLine("Processing complete!");
+            Console.WriteLine("Outputs:");
+            Console.WriteLine(" - ASCII tablature saved as 'tab.txt'");
+            Console.WriteLine(" - Sonic Pi code saved as 'sonicpi.txt'");
 
+            // Opcional: Muestra el mapeo de muestras de Sonic Pi
+            Console.WriteLine("\nWould you like to see the Sonic Pi sample mapping? (y/n)");
+            var showMapping = Console.ReadLine();
+            if (showMapping?.ToLower() == "y")
+            {
+                SonicPiEmitter.PrintSampleMapping();
+            }
+
+            // Finalización del programa
+            Console.WriteLine("Press any key to exit.");
             Console.ReadKey();
         }
     }
