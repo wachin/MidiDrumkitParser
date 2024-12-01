@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -6,35 +6,33 @@ using System.Threading.Tasks;
 
 namespace MIDI_Drumkit_Parser
 {
-    /* The TempoInferrer class is the main class for the algorithm. */
     public static class TempoInferrer
     {
-        /* This bool defines whether we'll print our list of events and/or clusters after finding them. */
-        static bool debugPrintEvents = true;
-        static bool debugPrintClusters = false;
-        static bool debugPrintRatedClusters = true;
+        // Opciones de depuración
+        private static bool DebugPrintEvents = true;
+        private static bool DebugPrintClusters = false;
+        private static bool DebugPrintRatedClusters = true;
 
-        const double clusterWidth = 70;
-        const double eventWidth = 70;
+        private const double ClusterWidth = 70; // Anchura de los clusters en milisegundos
+        private const double EventWidth = 70;   // Tiempo para agrupar eventos en un único BeatEvent
 
-        /* NotesToEvents takes a list of notes, and outputs a list of BeatEvents.
-         * We group together the notes to within 70ms of each other.
-         * Any note not falling in 70ms of an existing event is made into a new one. */
+        // Convierte una lista de NoteEvents en una lista de BeatEvents agrupados
         public static List<BeatEvent> NotesToEvents(List<NoteEvent> inputNoteEvents)
         {
-            List<BeatEvent> events = new List<BeatEvent>();
+            var events = new List<BeatEvent>();
 
-            foreach(NoteEvent note in inputNoteEvents)
+            foreach (var note in inputNoteEvents)
             {
                 double timestamp = note.Timestamp.TotalMilliseconds;
                 bool eventFound = false;
 
-                foreach(BeatEvent _event in events)
+                foreach (var evt in events)
                 {
-                    if (!eventFound && Math.Abs(timestamp - _event.Time) < eventWidth)
+                    if (Math.Abs(timestamp - evt.Time) < EventWidth)
                     {
+                        evt.AddNote(note);
                         eventFound = true;
-                        _event.AddNote(note);
+                        break;
                     }
                 }
 
@@ -44,51 +42,35 @@ namespace MIDI_Drumkit_Parser
                 }
             }
 
-            /* Print the list of events if so desired. */
-            if (debugPrintEvents)
+            if (DebugPrintEvents)
             {
-                foreach(BeatEvent _event in events)
+                Console.WriteLine("Detected Beat Events:");
+                foreach (var evt in events)
                 {
-                    Console.WriteLine("Event at " + _event.Time + " with " + _event.Notes.Count + " notes.");
+                    Console.WriteLine($"Event at {evt.Time}ms with {evt.Notes.Count} notes.");
                 }
             }
 
             return events;
         }
 
-        /* EventsToClusters takes a list of beat events, finds all the intervals between them
-         * that are less than 2 seconds long, and then clusters the intervals together into a list of
-         * tempo hypotheses. */
+        // Convierte una lista de BeatEvents en clusters de intervalos
         public static List<IntervalCluster> EventsToClusters(List<BeatEvent> beatEvents)
         {
-            List<IntervalCluster> clusters = new List<IntervalCluster>();
+            var clusters = new List<IntervalCluster>();
 
             for (int i = 0; i < beatEvents.Count; i++)
             {
                 for (int j = i + 1; j < beatEvents.Count; j++)
                 {
-                    EventInterval interval = new EventInterval(beatEvents[i], beatEvents[j]);
-                    if (interval.Length < 2000)
+                    var interval = new EventInterval(beatEvents[i], beatEvents[j]);
+
+                    if (interval.Length < 2000) // Limita los intervalos largos a 2 segundos
                     {
-                        bool clusterFound = false;
-                        int clusterIndex = 0;
-                        double clusterDistance = double.PositiveInfinity;
-
-                        for (int c = 0; c < clusters.Count; c++)
+                        var match = clusters.FirstOrDefault(c => Math.Abs(c.MeanLength - interval.Length) < ClusterWidth);
+                        if (match != null)
                         {
-                            IntervalCluster cluster = clusters[c];
-                            double difference = Math.Abs(cluster.MeanLength - interval.Length);
-                            if (difference < clusterWidth && difference < clusterDistance)
-                            {
-                                clusterFound = true;
-                                clusterIndex = c;
-                                clusterDistance = difference;
-                            }
-                        }
-
-                        if (clusterFound)
-                        {
-                            clusters[clusterIndex].AddInterval(interval);
+                            match.AddInterval(interval);
                         }
                         else
                         {
@@ -98,62 +80,38 @@ namespace MIDI_Drumkit_Parser
                 }
             }
 
-            /* Now cluster the clusters just in case any of the averages have strayed close together. */
-            List<IntervalCluster> newClusters = new List<IntervalCluster>();
-            foreach(IntervalCluster cluster in clusters)
+            if (DebugPrintClusters)
             {
-                bool matchFound = false;
-                foreach(IntervalCluster newCluster in newClusters)
+                Console.WriteLine("Interval Clusters:");
+                foreach (var cluster in clusters)
                 {
-                    if (!matchFound && Math.Abs(cluster.MeanLength - newCluster.MeanLength) < clusterWidth)
-                    {
-                        newCluster.MergeCluster(cluster);
-                        matchFound = true;
-                    }
-                }
-
-                if (!matchFound)
-                {
-                    newClusters.Add(cluster);
+                    Console.WriteLine($"Cluster: Mean={cluster.MeanLength}ms, Intervals={cluster.Intervals.Count}");
                 }
             }
 
-            /* If the cluster printing flag is set, then display a list of all the found clusters. */
-            if (debugPrintClusters)
-            {
-                foreach(IntervalCluster cluster in newClusters)
-                {
-                    Console.WriteLine("Interval Cluster " + cluster.MeanLength + "ms, with " + cluster.Intervals.Count + " notes.");
-                }
-            }
-
-            return newClusters;
+            return clusters;
         }
 
-        /* When we rate one cluster with respect to another, we add the other cluster's size to it,
-         * weighted by the following function. Small multiples are weighted more heavily than higher ones. */
-        static int Weight(int i)
+        // Calcula un peso para clasificar los clusters en función de múltiplos pequeños
+        private static int Weight(int i)
         {
             if (i >= 1 && i <= 4)
                 return 6 - i;
-            else if (i >= 5 && i <= 8)
+            if (i >= 5 && i <= 8)
                 return 1;
-            else
-                return 0;
+            return 0;
         }
 
-        /* In order to obtain a ranking for our different hypotheses, we compare the clusters
-         * against each other to see which of them are integer multiples within a reasonable margin.
-         * Those with many multiples will have a higher score overall than ones without. */
-        public static List<IntervalCluster> RateClusters (List<IntervalCluster> clusters)
+        // Clasifica los clusters por su relevancia como tempos plausibles
+        public static List<IntervalCluster> RateClusters(List<IntervalCluster> clusters)
         {
-            foreach(IntervalCluster baseCluster in clusters)
+            foreach (var baseCluster in clusters)
             {
-                foreach(IntervalCluster comparisonCluster in clusters)
+                foreach (var comparisonCluster in clusters)
                 {
-                    for(int i = 1; i < 9; i++)
+                    for (int i = 1; i < 9; i++)
                     {
-                        if (Math.Abs(baseCluster.MeanLength - (i * comparisonCluster.MeanLength)) < clusterWidth)
+                        if (Math.Abs(baseCluster.MeanLength - (i * comparisonCluster.MeanLength)) < ClusterWidth)
                         {
                             baseCluster.Rating += Weight(i) * comparisonCluster.Intervals.Count;
                         }
@@ -161,29 +119,31 @@ namespace MIDI_Drumkit_Parser
                 }
             }
 
-            /* Order the clusters by their rating from highest to lowest and then print them if desired. */
-            clusters = clusters.OrderByDescending(c => c.Rating).ToList();
+            // Ordena los clusters por su puntuación y elimina valores fuera de rango
+            clusters = clusters.OrderByDescending(c => c.Rating)
+                               .Where(c => c.MeanLength >= 250 && c.MeanLength <= 1000) // Entre 60 y 240 BPM
+                               .ToList();
 
-            /* Remove clusters with unrealistically large or small intervals,
-             * greater than 240 BPM or less than 60 BPM. */
-            for(int i = clusters.Count - 1; i >= 0; i--)
+            if (DebugPrintRatedClusters)
             {
-                IntervalCluster cluster = clusters[i];
-                if (cluster.MeanLength < 250 || cluster.MeanLength > 1000)
+                Console.WriteLine("Rated Clusters:");
+                foreach (var cluster in clusters)
                 {
-                    clusters.Remove(cluster);
-                }
-            }
-
-            if (debugPrintRatedClusters)
-            {
-                foreach (IntervalCluster cluster in clusters)
-                {
-                    Console.WriteLine("Interval Cluster " + cluster.GetBPM() + " BPM, with " + cluster.Intervals.Count + " notes, score " + cluster.Rating + ".");
+                    Console.WriteLine($"Cluster: {cluster.GetBPM()} BPM, Intervals={cluster.Intervals.Count}, Rating={cluster.Rating}");
                 }
             }
 
             return clusters;
+        }
+
+        // Genera un resumen de los clusters detectados
+        public static void PrintClusterSummary(List<IntervalCluster> clusters)
+        {
+            Console.WriteLine("Cluster Summary:");
+            foreach (var cluster in clusters)
+            {
+                Console.WriteLine($"Mean Length: {cluster.MeanLength}ms, Rating: {cluster.Rating}, BPM: {cluster.GetBPM()}");
+            }
         }
     }
 }
