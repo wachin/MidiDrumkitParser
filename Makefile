@@ -5,15 +5,13 @@ PROJECT_NAME = MIDI_Drumkit_Parser
 all: build
 
 build:
-	dotnet build -c Release
+	dotnet build $(PROJECT_NAME).csproj -c Release
 
 run: build
-	dotnet run --project $(PROJECT_NAME)
+	dotnet run --project $(PROJECT_NAME).csproj
 
 clean:
-	dotnet clean
+	dotnet clean $(PROJECT_NAME).csproj
 
 install:
 	./install.sh
-
-
