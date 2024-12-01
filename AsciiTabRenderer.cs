@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -7,23 +7,21 @@ using System.IO;
 
 namespace MIDI_Drumkit_Parser
 {
-    /* A LabelSymbolPair translates the label for a drum to the symbol for the ASCII tab. */
     public struct LabelSymbolPair
     {
-        public string label;
-        public string symbol;
+        public string Label;
+        public string Symbol;
 
-        public LabelSymbolPair(string _label, string _symbol)
+        public LabelSymbolPair(string label, string symbol)
         {
-            label = _label;
-            symbol = _symbol;
+            Label = label;
+            Symbol = symbol;
         }
     }
 
     public static class AsciiTabRenderer
     {
-        /* This lookup table translates from Drums to LabelSymbolPairs. */
-        static Dictionary<Drum, LabelSymbolPair> drumToName = new Dictionary<Drum, LabelSymbolPair>
+        private static readonly Dictionary<Drum, LabelSymbolPair> DrumToName = new()
         {
             [Drum.Snare] = new LabelSymbolPair(" S", "o"),
             [Drum.TomHigh] = new LabelSymbolPair("T1", "o"),
@@ -37,43 +35,41 @@ namespace MIDI_Drumkit_Parser
             [Drum.HatClosed] = new LabelSymbolPair("HH", "x")
         };
 
-        /* We render the ASCII tab based on the original rhythm. */
         public static void RenderAsciiTab(RhythmStructure rhythm)
         {
-            Dictionary<string, string> tab = new Dictionary<string, string>();
-            foreach (LabelSymbolPair pair in drumToName.Values)
+            var tab = new Dictionary<string, string>();
+
+            foreach (var pair in DrumToName.Values)
             {
-                tab[pair.label] = pair.label + "|";
+                tab[pair.Label] = $"{pair.Label}|";
             }
 
-            /* Initialize each slot with the "-" symbol then replace it if we find any of the right drum during this interval. */
-            for (int i = 0; i < rhythm.drums.Count; i++) 
+            for (int i = 0; i < rhythm.Drums.Count; i++)
             {
-                HashSet<Drum> drums = rhythm.drums[i];
-                foreach (string index in tab.Keys.ToList())
+                var drums = rhythm.Drums[i];
+                foreach (var index in tab.Keys)
                 {
                     tab[index] += "-";
                 }
 
-                foreach (Drum drum in drums)
+                foreach (var drum in drums)
                 {
-                    if (drumToName.Keys.Contains(drum))
+                    if (DrumToName.ContainsKey(drum))
                     {
-                        LabelSymbolPair pair = drumToName[drum];
-                        tab[pair.label] = tab[pair.label].Remove(i + 3, 1).Insert(i + 3, pair.symbol);
+                        var pair = DrumToName[drum];
+                        tab[pair.Label] = tab[pair.Label].Remove(tab[pair.Label].Length - 1).Insert(tab[pair.Label].Length - 1, pair.Symbol);
                     }
                 }
             }
 
-            /* Finally write out the tab to a text file. */
-            using (StreamWriter writer = new StreamWriter("tab.txt"))
+            using var writer = new StreamWriter("tab.txt");
+            writer.WriteLine(Convert.ToInt32(rhythm.BeatInterval));
+            foreach (var str in tab.Values)
             {
-                writer.WriteLine(Convert.ToInt32(rhythm.beatInterval));
-                foreach (string str in tab.Values)
-                {
-                    writer.WriteLine(str);
-                }
+                writer.WriteLine(str);
             }
+
+            Console.WriteLine("ASCII Tab rendered to tab.txt.");
         }
     }
 }

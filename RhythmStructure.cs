@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -6,84 +6,98 @@ using System.Threading.Tasks;
 
 namespace MIDI_Drumkit_Parser
 {
-    /* Types of Drum. */
+    // Tipos de batería
     public enum Drum
     {
         Snare, TomHigh, TomMid, TomLow, HatOpen, HatClosed, HatClosing, CrashLeft, CrashRight, Kick
     }
 
-    /* A class for a rhythm, making up a list of the drums used in each semiquaver,
-     * and the interval between beats in milliseconds. */
+    // Estructura principal del ritmo
     public class RhythmStructure
     {
-        public double beatInterval;
-        public List<HashSet<Drum>> drums;
+        public double BeatInterval { get; set; } // Intervalo entre beats en milisegundos
+        public List<HashSet<Drum>> Drums { get; set; } // Lista de conjuntos de tambores en cada semiquaver
 
-        public RhythmStructure(double _beatInterval)
+        public RhythmStructure(double beatInterval)
         {
-            beatInterval = _beatInterval;
-            drums = new List<HashSet<Drum>>();
+            BeatInterval = beatInterval;
+            Drums = new List<HashSet<Drum>>();
         }
 
-        // NOTE: This copy may need to go deeper as it copies hash set references.
+        // Constructor de copia profunda
         public RhythmStructure(RhythmStructure rhythm)
         {
-            beatInterval = rhythm.beatInterval;
-            drums = new List<HashSet<Drum>>(rhythm.drums);
+            BeatInterval = rhythm.BeatInterval;
+            Drums = new List<HashSet<Drum>>();
+            foreach (var drumSet in rhythm.Drums)
+            {
+                Drums.Add(new HashSet<Drum>(drumSet));
+            }
         }
 
-        /* Functions to get the set of Drums played on a certain semiquaver,
-         * add drums to a semiquaver, and copy a subsection of the rhythm. */
+        // Obtiene los tambores tocados en una semiquaver específica
         public HashSet<Drum> GetAtIndex(int beatIndex, int semiQIndex)
         {
-            return drums[beatIndex * 4 + semiQIndex];
+            return Drums[beatIndex * 4 + semiQIndex];
         }
 
         public HashSet<Drum> GetAtIndex(int index)
         {
-            return drums[index];
+            return Drums[index];
         }
 
+        // Agrega un conjunto de tambores a la estructura
         public void AddDrums(HashSet<Drum> drumsIn)
         {
-            drums.Add(drumsIn);
+            Drums.Add(drumsIn);
         }
 
-        public void RemoveDrumAt (int index, Drum drum)
+        // Elimina un tambor específico de un índice
+        public void RemoveDrumAt(int index, Drum drum)
         {
-            if (drums[index].Contains(drum))
+            if (Drums[index].Contains(drum))
             {
-                drums[index].Remove(drum);
+                Drums[index].Remove(drum);
             }
         }
 
+        // Copia un segmento de la estructura
         public RhythmStructure CopySub(int startIndex, int length, double interval)
         {
-            RhythmStructure copy = new RhythmStructure(interval);
-
+            var copy = new RhythmStructure(interval);
             for (int i = startIndex; i < startIndex + length; i++)
             {
-                copy.AddDrums(GetAtIndex(i));
+                copy.AddDrums(new HashSet<Drum>(GetAtIndex(i)));
             }
-
             return copy;
         }
 
-        // Check all of the input rhythm against the subsection of this rhythm given by the parameters.
+        // Verifica si un segmento de la estructura coincide con otra
         public bool CheckMatch(RhythmStructure otherRhythm, int startIndex)
         {
-            bool match = true;
-
-            for (int i = startIndex; i < startIndex + otherRhythm.drums.Count; i++)
+            for (int i = 0; i < otherRhythm.Drums.Count; i++)
             {
-                int otherRhythmIndex = i - startIndex;
-                if (!drums[i].SetEquals(otherRhythm.drums[otherRhythmIndex]))
+                if (!Drums[startIndex + i].SetEquals(otherRhythm.Drums[i]))
                 {
-                    match = false;
+                    return false;
                 }
             }
+            return true;
+        }
 
-            return match;
+        // Método para imprimir la estructura completa
+        public void Print()
+        {
+            Console.WriteLine($"Beat Interval: {BeatInterval} ms");
+            for (int i = 0; i < Drums.Count; i++)
+            {
+                Console.Write($"SemiQuaver {i}: ");
+                foreach (var drum in Drums[i])
+                {
+                    Console.Write($"{drum} ");
+                }
+                Console.WriteLine();
+            }
         }
     }
 }
