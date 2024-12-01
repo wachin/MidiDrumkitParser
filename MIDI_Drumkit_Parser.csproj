@@ -59,8 +59,4 @@
     <None Include="packages.config" />
   </ItemGroup>
 
-  <ItemGroup>
-  <PackageReference Include="ManagedMidi" Version="3.0.0" />
-  </ItemGroup>
-
 </Project>
