@@ -8,8 +8,8 @@ namespace MIDI_Drumkit_Parser
 {
     public static class RhythmCreator
     {
-        /* A lookup table of MIDI indices to Drums. */
-        static Dictionary<byte, Drum> indexToDrum = new Dictionary<byte, Drum>
+        // Mapeo entre valores MIDI y tipos de tambores
+        private static readonly Dictionary<int, Drum> MidiToDrumMapping = new()
         {
             [38] = Drum.Snare,
             [48] = Drum.TomHigh,
@@ -23,53 +23,58 @@ namespace MIDI_Drumkit_Parser
             [36] = Drum.Kick
         };
 
-        /* Create a rhythm from a tracker and list of events, by quantizing the events
-         * according to the beat tracker given to the function. */
-        public static RhythmStructure CreateRhythm(BeatTracker tracker, List<BeatEvent> events)
+        // Crea una estructura rítmica basada en los eventos y el tracker de beats
+        public static RhythmStructure CreateRhythm(BeatTracker beatTracker, List<BeatEvent> beatEvents)
         {
-            const byte numDivisions = 4;
-            int eventIndex = 0;
-            RhythmStructure rhythm = new RhythmStructure(tracker.Interval);
+            var rhythm = new RhythmStructure(beatTracker.Interval / 4);
 
-            /* Iterate over all the beats and semiquavers, and set the semiquaver interval. */
-            for (int i = 0; i < tracker.ProcessedItems.Count; i++)
+            foreach (var evt in beatEvents)
             {
-                BeatEvent baseEvent = tracker.ProcessedItems[i];
-                double interval;
-                if (i != tracker.ProcessedItems.Count - 1)
+                int index = (int)(evt.Time / rhythm.BeatInterval);
+
+                while (rhythm.Drums.Count <= index)
                 {
-                    BeatEvent nextEvent = tracker.ProcessedItems[i + 1];
-                    interval = (nextEvent.Time - baseEvent.Time) / 4;
-                }
-                else
-                {
-                    interval = (tracker.NextPrediction - baseEvent.Time) / 4;
+                    rhythm.Drums.Add(new HashSet<Drum>());
                 }
 
-                for (int j = 0; j < numDivisions; j++)
+                foreach (var note in evt.Notes)
                 {
-                    HashSet<Drum> drums = new HashSet<Drum>();
-
-                    /* Determine the time at which one semiquaver event occurs and then quantizes each note event to the semiquaver. */
-                    double baseTime = baseEvent.Time + (j * interval);
-                    if (eventIndex < events.Count && baseTime - (interval / 2) < events[eventIndex].Time && baseTime + (interval / 2) > events[eventIndex].Time)
+                    if (MidiToDrumMapping.ContainsKey(note.Channel))
                     {
-                        foreach (NoteEvent noteEvent in events[eventIndex].Notes)
-                        {
-                            if (indexToDrum.Keys.Contains(noteEvent.Channel))
-                            {
-                                Drum drum = indexToDrum[noteEvent.Channel];
-                                drums.Add(drum);
-                            }
-                        }
-                        eventIndex++;
+                        rhythm.Drums[index].Add(MidiToDrumMapping[note.Channel]);
                     }
-
-                    rhythm.AddDrums(drums);
                 }
             }
 
             return rhythm;
+        }
+
+        // Genera una estructura rítmica simplificada a partir de eventos
+        public static RhythmStructure SimplifyRhythm(RhythmStructure rhythm, int factor)
+        {
+            var simplifiedRhythm = new RhythmStructure(rhythm.BeatInterval * factor);
+
+            for (int i = 0; i < rhythm.Drums.Count; i += factor)
+            {
+                var combinedDrums = new HashSet<Drum>();
+                for (int j = 0; j < factor && i + j < rhythm.Drums.Count; j++)
+                {
+                    combinedDrums.UnionWith(rhythm.GetAtIndex(i + j));
+                }
+                simplifiedRhythm.AddDrums(combinedDrums);
+            }
+
+            return simplifiedRhythm;
+        }
+
+        // Imprime el mapeo MIDI a consola para depuración
+        public static void PrintMidiMapping()
+        {
+            Console.WriteLine("MIDI to Drum Mapping:");
+            foreach (var mapping in MidiToDrumMapping)
+            {
+                Console.WriteLine($"MIDI Value: {mapping.Key}, Drum: {mapping.Value}");
+            }
         }
     }
 }
