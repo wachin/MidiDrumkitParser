@@ -1,0 +1,26 @@
+
+Es necesario Debian 12 de 64 bit
+Este programa todavía no funciona 
+
+sudo apt install make
+
+make 
+
+
+dotnet add package managed-midi --version 1.10.1
+
+
+
+Compila el Proyecto Después de ajustar el código, intenta compilar nuevamente:
+
+```bash
+dotnet build
+```
+
+Prueba el Programa Ejecuta el programa para verificar que funcione correctamente:
+
+
+```bash
+dotnet run
+```
+

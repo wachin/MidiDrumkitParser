@@ -12,6 +12,12 @@ namespace MIDI_Drumkit_Parser
             Time = time;
             Notes = new List<Note>();
         }
+        
+        public void AddNote(Note note)
+		{
+    		Notes.Add(note);
+		}
+		
     }
 
     public class Note
