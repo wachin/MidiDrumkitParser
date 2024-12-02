@@ -25,16 +25,15 @@
     <PlatformTarget>AnyCPU</PlatformTarget>
     <DebugType>pdbonly</DebugType>
     <Optimize>true</Optimize>
-    <OutputPath>bin\Release\</OutputPath>
+    <OutputPath>bin/Release\</OutputPath>
     <DefineConstants>TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
 
-  <!-- Referencias necesarias -->
-  <ItemGroup>
-    <PackageReference Include="ManagedMidi" Version="3.0.0" />
-  </ItemGroup>
+	<ItemGroup>
+  	<PackageReference Include="managed-midi" Version="1.10.1" />
+	</ItemGroup>
 
   <!-- Incluir todos los archivos del proyecto -->
   <ItemGroup>
