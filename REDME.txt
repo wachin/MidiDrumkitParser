@@ -1,3 +1,4 @@
+Port to Debian 12
 
 Es necesario Debian 12 de 64 bit
 Este programa todavía no funciona 
