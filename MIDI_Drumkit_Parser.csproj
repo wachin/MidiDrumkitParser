@@ -7,6 +7,7 @@
     <Nullable>enable</Nullable>
     <AssemblyName>MIDI_Drumkit_Parser</AssemblyName>
     <RootNamespace>MIDI_Drumkit_Parser</RootNamespace>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
   </PropertyGroup>
 
   <!-- Configuración para compilaciones de Debug y Release -->
@@ -15,7 +16,7 @@
     <DebugSymbols>true</DebugSymbols>
     <DebugType>portable</DebugType>
     <Optimize>false</Optimize>
-    <OutputPath>bin\Debug\</OutputPath>
+    <OutputPath>bin/Debug/</OutputPath>
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
@@ -25,30 +26,15 @@
     <PlatformTarget>AnyCPU</PlatformTarget>
     <DebugType>pdbonly</DebugType>
     <Optimize>true</Optimize>
-    <OutputPath>bin/Release\</OutputPath>
+    <OutputPath>bin/Release/</OutputPath>
     <DefineConstants>TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
 
-	<ItemGroup>
-  	<PackageReference Include="managed-midi" Version="1.10.1" />
-	</ItemGroup>
-
-  <!-- Incluir todos los archivos del proyecto -->
+  <!-- Referencias de paquetes -->
   <ItemGroup>
-    <Compile Include="AsciiTabRenderer.cs" />
-    <Compile Include="BeatInferrer.cs" />
-    <Compile Include="HierarchicalRhythm.cs" />
-    <Compile Include="HierarchicalRhythmInferrer.cs" />
-    <Compile Include="IntervalCluster.cs" />
-    <Compile Include="MidiReader.cs" />
-    <Compile Include="Program.cs" />
-    <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="RhythmCreator.cs" />
-    <Compile Include="RhythmStructure.cs" />
-    <Compile Include="SonicPiEmitter.cs" />
-    <Compile Include="TempoInferrer.cs" />
+    <PackageReference Include="managed-midi" Version="1.10.1" />
   </ItemGroup>
 
   <!-- Archivos adicionales del proyecto -->
